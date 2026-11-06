@@ -8,6 +8,8 @@ import kotlinx.coroutines.launch
 import uk.ac.tees.mad.chateasy.data.Repo
 import uk.ac.tees.mad.chateasy.model.ResultState
 import uk.ac.tees.mad.chateasy.model.UserData
+import androidx.lifecycle.ViewModelProvider
+import androidx.savedstate.SavedStateRegistryOwner
 
 
 class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) : ViewModel() {
@@ -75,11 +77,14 @@ class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) :
         }
     }
 
-
-
-
-
-
+    companion object {
+        fun Factory(repo: Repo): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return AppViewModel(SavedStateHandle(), repo) as T
+            }
+        }
+    }
 }
 data class AuthScreenState(
     val isLoading: Boolean = false,

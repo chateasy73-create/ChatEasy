@@ -1,3 +1,5 @@
+package uk.ac.tees.mad.chateasy.domain
+
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +17,8 @@ class RepoImpl : Repo {
 
             val email = userdata.email
             val password = userdata.password
+            val phoneNumber = userdata.phoneNumber
+
 
             if (email.isNullOrEmpty() || password.isNullOrEmpty()) {
                 trySend(ResultState.error("Email or Password cannot be empty"))
