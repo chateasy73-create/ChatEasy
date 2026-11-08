@@ -20,21 +20,28 @@ fun AuthScreen(viewModel: AppViewModel) {
     var isLogin by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
 
     AuthContent(
         isLogin = isLogin,
         email = email,
         password = password,
+        phoneNumber = phoneNumber,
         isLoading = state.isLoading,
         error = state.error,
         onEmailChange = { email = it },
         onPasswordChange = { password = it },
+        onPhoneNumberChange = { phoneNumber = it },
         onToggleMode = { 
             isLogin = !isLogin 
             viewModel.resetLoginState()
         },
         onSubmit = {
-            val userData = UserData(email, password)
+            val userData = UserData(
+                email = email,
+                password = password,
+                phoneNumber = phoneNumber
+            )
             if (isLogin) {
                 viewModel.loginUser(userData)
             } else {
@@ -49,10 +56,12 @@ fun AuthContent(
     isLogin: Boolean,
     email: String,
     password: String,
+    phoneNumber: String,
     isLoading: Boolean,
     error: String?,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onPhoneNumberChange: (String) -> Unit,
     onToggleMode: () -> Unit,
     onSubmit: () -> Unit
 ) {
@@ -80,6 +89,17 @@ fun AuthContent(
         
         Spacer(modifier = Modifier.height(8.dp))
         
+        if (!isLogin) {
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = onPhoneNumberChange,
+                label = { Text("Phone Number") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         OutlinedTextField(
             value = password,
             onValueChange = onPasswordChange,
@@ -124,10 +144,12 @@ fun AuthScreenLoginPreview() {
             isLogin = true,
             email = "user@example.com",
             password = "password",
+            phoneNumber = "",
             isLoading = false,
             error = null,
             onEmailChange = {},
             onPasswordChange = {},
+            onPhoneNumberChange = {},
             onToggleMode = {},
             onSubmit = {}
         )
@@ -142,10 +164,12 @@ fun AuthScreenSignUpPreview() {
             isLogin = false,
             email = "",
             password = "",
+            phoneNumber = "",
             isLoading = false,
             error = null,
             onEmailChange = {},
             onPasswordChange = {},
+            onPhoneNumberChange = {},
             onToggleMode = {},
             onSubmit = {}
         )

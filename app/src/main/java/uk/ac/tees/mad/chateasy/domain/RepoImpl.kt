@@ -1,6 +1,7 @@
 package uk.ac.tees.mad.chateasy.domain
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -10,6 +11,7 @@ import uk.ac.tees.mad.chateasy.model.UserData
 
 class RepoImpl : Repo {
     private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
     override suspend fun registerUser(userdata: UserData): Flow<ResultState<String>> =
         callbackFlow {
 
@@ -29,7 +31,24 @@ class RepoImpl : Repo {
             auth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
-                        trySend(ResultState.Succes("Registration Successful"))
+                        val uid = auth.currentUser?.uid
+                        if (uid != null) {
+                            val userMap = mapOf(
+                                "uid" to uid,
+                                "email" to email,
+                                "phoneNumber" to phoneNumber
+                            )
+                            firestore.collection("user").document(uid)
+                                .set(userMap)
+                                .addOnSuccessListener {
+                                    trySend(ResultState.Succes("Registration Successful"))
+                                }
+                                .addOnFailureListener { e ->
+                                    trySend(ResultState.error(e.localizedMessage ?: "Firestore error"))
+                                }
+                        } else {
+                            trySend(ResultState.error("User UID not found"))
+                        }
                     } else {
                         trySend(
                             ResultState.error(
