@@ -6,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import uk.ac.tees.mad.chateasy.data.Repo
+import uk.ac.tees.mad.chateasy.model.ChatUser
 import uk.ac.tees.mad.chateasy.model.ResultState
 import uk.ac.tees.mad.chateasy.model.UserData
+import android.content.ContentResolver
 import androidx.lifecycle.ViewModelProvider
 import androidx.savedstate.SavedStateRegistryOwner
 
@@ -15,6 +17,9 @@ import androidx.savedstate.SavedStateRegistryOwner
 class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) : ViewModel() {
     private val _authScreenState = mutableStateOf(AuthScreenState())
     val authScreenState = _authScreenState
+
+    private val _homeScreenState = mutableStateOf(HomeScreenState())
+    val homeScreenState = _homeScreenState
     fun loginUser(userData: UserData) {
         viewModelScope.launch {
             repo.loginuserwithemailandpassword(userData).collect { result ->
@@ -77,6 +82,30 @@ class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) :
         }
     }
 
+    fun getContacts(contentResolver: ContentResolver) {
+        viewModelScope.launch {
+            repo.getContacts(contentResolver).collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _homeScreenState.value = _homeScreenState.value.copy(isLoading = true)
+                    }
+                    is ResultState.Succes -> {
+                        _homeScreenState.value = _homeScreenState.value.copy(
+                            isLoading = false,
+                            contacts = result.data
+                        )
+                    }
+                    is ResultState.error -> {
+                        _homeScreenState.value = _homeScreenState.value.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         fun Factory(repo: Repo): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -91,4 +120,10 @@ data class AuthScreenState(
     val error: String? = null,
     val userdata: String? = null,
     val success: Boolean = false
+)
+
+data class HomeScreenState(
+    val isLoading: Boolean = false,
+    val contacts: List<ChatUser> = emptyList(),
+    val error: String? = null
 )
