@@ -10,17 +10,27 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import uk.ac.tees.mad.chateasy.ViewModel.AppViewModel
 import uk.ac.tees.mad.chateasy.model.UserData
+import uk.ac.tees.mad.chateasy.navigation.Routes
 import uk.ac.tees.mad.chateasy.ui.theme.ChatEasyTheme
 
 @Composable
-fun AuthScreen(viewModel: AppViewModel) {
+fun AuthScreen(viewModel: AppViewModel, navController: NavController) {
     val state by viewModel.authScreenState
     var isLogin by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
+
+    LaunchedEffect(state.success) {
+        if (state.success) {
+            navController.navigate(Routes.home) {
+                popUpTo(Routes.auth) { inclusive = true }
+            }
+        }
+    }
 
     AuthContent(
         isLogin = isLogin,
