@@ -20,6 +20,10 @@ class RepoImpl : Repo {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
 
+    private fun getChatId(uid1: String, uid2: String): String {
+        return if (uid1 < uid2) "${uid1}_${uid2}" else "${uid2}_${uid1}"
+    }
+
     override fun getContacts(contentResolver: ContentResolver): Flow<ResultState<List<ChatUser>>> = callbackFlow {
         trySend(ResultState.Loading)
         val currentUid = auth.currentUser?.uid
@@ -87,30 +91,19 @@ class RepoImpl : Repo {
 
                 matchedUsers.forEach { user ->
                     firestore.collection("messages")
-                        .where(
-                            Filter.or(
-                                Filter.and(
-                                    Filter.equalTo("senderId", currentUid),
-                                    Filter.equalTo("receiverId", user.uid)
-                                ),
-                                Filter.and(
-                                    Filter.equalTo("senderId", user.uid),
-                                    Filter.equalTo("receiverId", currentUid)
-                                )
-                            )
-                        )
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
-                        .limit(1)
+                        .whereEqualTo("chatId", getChatId(currentUid, user.uid))
                         .get()
                         .addOnCompleteListener { msgTask ->
                             val lastMsg = if (msgTask.isSuccessful && !msgTask.result.isEmpty) {
-                                msgTask.result.documents[0].getString("message") ?: ""
+                                msgTask.result.documents
+                                    .mapNotNull { it.getString("message") to (it.getLong("timestamp") ?: 0L) }
+                                    .maxByOrNull { it.second }?.first ?: ""
                             } else ""
                             
                             finalUsers.add(user.copy(lastMessage = lastMsg))
                             processedCount++
                             if (processedCount == matchedUsers.size) {
-                                trySend(ResultState.Succes(finalUsers))
+                                trySend(ResultState.Succes(finalUsers.sortedByDescending { it.lastMessage.isNotEmpty() }))
                             }
                         }
                 }
@@ -132,6 +125,7 @@ class RepoImpl : Repo {
         val chatMessage = mapOf(
             "senderId" to currentUid,
             "receiverId" to receiverId,
+            "chatId" to getChatId(currentUid, receiverId),
             "message" to message,
             "timestamp" to System.currentTimeMillis()
         )
@@ -156,34 +150,23 @@ class RepoImpl : Repo {
         }
 
         val registration = firestore.collection("messages")
-            .where(
-                Filter.or(
-                    Filter.and(
-                        Filter.equalTo("senderId", currentUid),
-                        Filter.equalTo("receiverId", receiverId)
-                    ),
-                    Filter.and(
-                        Filter.equalTo("senderId", receiverId),
-                        Filter.equalTo("receiverId", currentUid)
-                    )
-                )
-            )
-            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .whereEqualTo("chatId", getChatId(currentUid, receiverId))
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     trySend(ResultState.error(error.localizedMessage ?: "Error fetching messages"))
                     return@addSnapshotListener
                 }
-
+ 
                 if (snapshot != null) {
                     val messages = snapshot.documents.mapNotNull { doc ->
                         ChatMessage(
                             senderId = doc.getString("senderId") ?: "",
                             receiverId = doc.getString("receiverId") ?: "",
+                            chatId = doc.getString("chatId") ?: "",
                             message = doc.getString("message") ?: "",
                             timestamp = doc.getLong("timestamp") ?: 0L
                         )
-                    }
+                    }.sortedBy { it.timestamp }
                     trySend(ResultState.Succes(messages))
                 }
             }

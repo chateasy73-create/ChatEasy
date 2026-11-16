@@ -1,5 +1,9 @@
 package uk.ac.tees.mad.chateasy.presentation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import uk.ac.tees.mad.chateasy.ViewModel.AppViewModel
@@ -27,15 +32,36 @@ import uk.ac.tees.mad.chateasy.model.ChatUser
 import uk.ac.tees.mad.chateasy.navigation.Routes
 import uk.ac.tees.mad.chateasy.ui.theme.ChatEasyTheme
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
     val state by viewModel.homeScreenState
     val context = LocalContext.current
+    var hasPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.READ_CONTACTS
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            hasPermission = isGranted
+            if (isGranted) {
+                viewModel.getContacts(context.contentResolver)
+            }
+        }
+    )
 
     LaunchedEffect(Unit) {
-        viewModel.getContacts(context.contentResolver)
+        if (!hasPermission) {
+            launcher.launch(Manifest.permission.READ_CONTACTS)
+        } else {
+            viewModel.getContacts(context.contentResolver)
+        }
     }
 
     Scaffold(
@@ -56,6 +82,18 @@ fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
                 .padding(padding)
         ) {
             when {
+                !hasPermission -> {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Contacts permission is required to find friends.")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = { launcher.launch(Manifest.permission.READ_CONTACTS) }) {
+                            Text("Grant Permission")
+                        }
+                    }
+                }
                 state.isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }

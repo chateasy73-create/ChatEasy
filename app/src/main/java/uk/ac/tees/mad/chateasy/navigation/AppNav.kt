@@ -11,6 +11,7 @@ import uk.ac.tees.mad.chateasy.ViewModel.AppViewModel
 import uk.ac.tees.mad.chateasy.domain.RepoImpl
 import uk.ac.tees.mad.chateasy.presentation.AuthScreen
 import uk.ac.tees.mad.chateasy.presentation.HomeScreen
+import uk.ac.tees.mad.chateasy.presentation.ChatScreen
 
 @Composable
 fun AppNav() {
@@ -30,8 +31,7 @@ fun AppNav() {
         }
         composable("${Routes.chat}/{userId}") { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            // ChatScreen(viewModel = viewModel, userId = userId, navController = navController)
-            Text("Chat with $userId") // Placeholder for now
+            ChatScreen(viewModel = viewModel, userId = userId, navController = navController)
         }
     }
 }
