@@ -17,8 +17,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.tooling.preview.Preview
 import com.google.firebase.auth.FirebaseAuth
 import uk.ac.tees.mad.chateasy.ViewModel.AppViewModel
+import uk.ac.tees.mad.chateasy.ViewModel.ChatScreenState
 import uk.ac.tees.mad.chateasy.model.ChatMessage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,12 +34,37 @@ fun ChatScreen(viewModel: AppViewModel, userId: String, navController: NavContro
         viewModel.getMessages(userId)
     }
 
+    ChatScreenContent(
+        state = state,
+        currentUid = currentUid,
+        messageText = messageText,
+        onMessageChange = { messageText = it },
+        onBack = { navController.popBackStack() },
+        onSend = {
+            if (messageText.isNotBlank()) {
+                viewModel.sendMessage(userId, messageText)
+                messageText = ""
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatScreenContent(
+    state: ChatScreenState,
+    currentUid: String,
+    messageText: String,
+    onMessageChange: (String) -> Unit,
+    onBack: () -> Unit,
+    onSend: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Chat", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -46,13 +73,8 @@ fun ChatScreen(viewModel: AppViewModel, userId: String, navController: NavContro
         bottomBar = {
             ChatInput(
                 messageText = messageText,
-                onMessageChange = { messageText = it },
-                onSend = {
-                    if (messageText.isNotBlank()) {
-                        viewModel.sendMessage(userId, messageText)
-                        messageText = ""
-                    }
-                }
+                onMessageChange = onMessageChange,
+                onSend = onSend
             )
         }
     ) { padding ->
@@ -150,4 +172,22 @@ fun ChatInput(
             }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ChatScreenPreview() {
+    val mockMessages = listOf(
+        ChatMessage(senderId = "1", receiverId = "2", message = "Hi Alice!", timestamp = 1L),
+        ChatMessage(senderId = "2", receiverId = "1", message = "Hey Bob, how are you?", timestamp = 2L),
+        ChatMessage(senderId = "1", receiverId = "2", message = "I'm doing great, working on ChatEasy!", timestamp = 3L)
+    )
+    ChatScreenContent(
+        state = ChatScreenState(messages = mockMessages),
+        currentUid = "1",
+        messageText = "",
+        onMessageChange = {},
+        onBack = {},
+        onSend = {}
+    )
 }

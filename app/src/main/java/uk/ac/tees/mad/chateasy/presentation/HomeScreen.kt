@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import uk.ac.tees.mad.chateasy.ViewModel.AppViewModel
+import uk.ac.tees.mad.chateasy.ViewModel.HomeScreenState
 import uk.ac.tees.mad.chateasy.model.ChatUser
 import uk.ac.tees.mad.chateasy.navigation.Routes
 import uk.ac.tees.mad.chateasy.ui.theme.ChatEasyTheme
@@ -64,6 +65,24 @@ fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
         }
     }
 
+    HomeScreenContent(
+        state = state,
+        hasPermission = hasPermission,
+        onGrantPermission = { launcher.launch(Manifest.permission.READ_CONTACTS) },
+        onContactClick = { contact ->
+            navController.navigate("${Routes.chat}/${contact.uid}")
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeScreenContent(
+    state: HomeScreenState,
+    hasPermission: Boolean,
+    onGrantPermission: () -> Unit,
+    onContactClick: (ChatUser) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -89,7 +108,7 @@ fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
                     ) {
                         Text("Contacts permission is required to find friends.")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(onClick = { launcher.launch(Manifest.permission.READ_CONTACTS) }) {
+                        Button(onClick = onGrantPermission) {
                             Text("Grant Permission")
                         }
                     }
@@ -117,7 +136,7 @@ fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(state.contacts) { contact ->
                             ContactItem(contact = contact) {
-                                navController.navigate("${Routes.chat}/${contact.uid}")
+                                onContactClick(contact)
                             }
                             HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -195,12 +214,11 @@ fun HomeScreenPreview() {
             ChatUser(uid = "2", name = "Bob", lastMessage = ""),
             ChatUser(uid = "3", name = "Charlie", lastMessage = "Seen any good movies lately?")
         )
-        Surface {
-            LazyColumn {
-                items(mockContacts) { contact ->
-                    ContactItem(contact = contact) {}
-                }
-            }
-        }
+        HomeScreenContent(
+            state = HomeScreenState(contacts = mockContacts),
+            hasPermission = true,
+            onGrantPermission = {},
+            onContactClick = {}
+        )
     }
 }
