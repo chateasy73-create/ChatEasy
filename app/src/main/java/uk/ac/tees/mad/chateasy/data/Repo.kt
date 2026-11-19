@@ -15,4 +15,5 @@ interface Repo {
     fun getContacts(contentResolver: android.content.ContentResolver): Flow<ResultState<List<ChatUser>>>
     fun sendMessage(receiverId: String, message: String): Flow<ResultState<String>>
     fun getMessages(receiverId: String): Flow<ResultState<List<ChatMessage>>>
-}
+    fun updateFcmToken(token: String): Flow<ResultState<String>>
+}

@@ -141,6 +141,12 @@ class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) :
         }
     }
 
+    fun updateFcmToken(token: String) {
+        viewModelScope.launch {
+            repo.updateFcmToken(token).collect { /* Handle result if needed */ }
+        }
+    }
+
     companion object {
         fun Factory(repo: Repo): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

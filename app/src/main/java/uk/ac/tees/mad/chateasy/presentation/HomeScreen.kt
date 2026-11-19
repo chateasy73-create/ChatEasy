@@ -2,6 +2,7 @@ package uk.ac.tees.mad.chateasy.presentation
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -33,42 +34,64 @@ import uk.ac.tees.mad.chateasy.model.ChatUser
 import uk.ac.tees.mad.chateasy.navigation.Routes
 import uk.ac.tees.mad.chateasy.ui.theme.ChatEasyTheme
 
+import com.google.firebase.messaging.FirebaseMessaging
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
     val state by viewModel.homeScreenState
     val context = LocalContext.current
-    var hasPermission by remember {
+    
+    val permissions = remember {
+        mutableStateListOf(
+            Manifest.permission.READ_CONTACTS,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.POST_NOTIFICATIONS
+            } else {
+                null
+            }
+        ).filterNotNull()
+    }
+
+    var permissionsGranted by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_CONTACTS
-            ) == PackageManager.PERMISSION_GRANTED
+            permissions.all {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
         )
     }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            hasPermission = isGranted
-            if (isGranted) {
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { result ->
+            permissionsGranted = result.values.all { it }
+            if (permissionsGranted) {
                 viewModel.getContacts(context.contentResolver)
             }
         }
     )
 
     LaunchedEffect(Unit) {
-        if (!hasPermission) {
-            launcher.launch(Manifest.permission.READ_CONTACTS)
+        if (!permissionsGranted) {
+            launcher.launch(permissions.toTypedArray())
         } else {
             viewModel.getContacts(context.contentResolver)
+        }
+        
+        // Update FCM Token
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                task.result?.let { token ->
+                    viewModel.updateFcmToken(token)
+                }
+            }
         }
     }
 
     HomeScreenContent(
         state = state,
-        hasPermission = hasPermission,
-        onGrantPermission = { launcher.launch(Manifest.permission.READ_CONTACTS) },
+        hasPermission = permissionsGranted,
+        onGrantPermission = { launcher.launch(permissions.toTypedArray()) },
         onContactClick = { contact ->
             navController.navigate("${Routes.chat}/${contact.uid}")
         }

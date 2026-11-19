@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Filter
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -18,7 +19,14 @@ import uk.ac.tees.mad.chateasy.model.UserData
 
 class RepoImpl : Repo {
     private val auth = FirebaseAuth.getInstance()
-    private val firestore = FirebaseFirestore.getInstance()
+    private val firestore = FirebaseFirestore.getInstance().apply {
+        // Firestore persistence is enabled by default on Android, 
+        // but we can explicitly configure the cache size if needed.
+        val settings = com.google.firebase.firestore.firestoreSettings {
+            setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
+        }
+        firestoreSettings = settings
+    }
 
     private fun getChatId(uid1: String, uid2: String): String {
         return if (uid1 < uid2) "${uid1}_${uid2}" else "${uid2}_${uid1}"
@@ -131,6 +139,9 @@ class RepoImpl : Repo {
         )
 
         firestore.collection("messages").add(chatMessage)
+            .apply {
+                // No need to explicitly handle offline case as Firestore queues it.
+            }
             .addOnSuccessListener {
                 trySend(ResultState.Succes("Message Sent"))
             }
@@ -252,4 +263,22 @@ class RepoImpl : Repo {
             awaitClose { close() }
         }
 
+    override fun updateFcmToken(token: String): Flow<ResultState<String>> = callbackFlow {
+        trySend(ResultState.Loading)
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            val data = mapOf("fcmToken" to token)
+            firestore.collection("user").document(uid)
+                .set(data, SetOptions.merge())
+                .addOnSuccessListener {
+                    trySend(ResultState.Succes("Token Updated"))
+                }
+                .addOnFailureListener { e ->
+                    trySend(ResultState.error(e.localizedMessage ?: "Firestore error"))
+                }
+        } else {
+            trySend(ResultState.error("User not logged in"))
+        }
+        awaitClose { close() }
+    }
 }
