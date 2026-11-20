@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import uk.ac.tees.mad.chateasy.ViewModel.AppViewModel
 import uk.ac.tees.mad.chateasy.ViewModel.HomeScreenState
 import uk.ac.tees.mad.chateasy.model.ChatUser
@@ -94,6 +94,9 @@ fun HomeScreen(viewModel: AppViewModel, navController: NavController) {
         onGrantPermission = { launcher.launch(permissions.toTypedArray()) },
         onContactClick = { contact ->
             navController.navigate("${Routes.chat}/${contact.uid}")
+        },
+        onSettingsClick = {
+            navController.navigate(Routes.Setting)
         }
     )
 }
@@ -104,13 +107,17 @@ fun HomeScreenContent(
     state: HomeScreenState,
     hasPermission: Boolean,
     onGrantPermission: () -> Unit,
-    onContactClick: (ChatUser) -> Unit
+    onContactClick: (ChatUser) -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("ChatEasy", fontWeight = FontWeight.Bold) },
-                actions = {
+                 actions = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
                     IconButton(onClick = { /* TODO: Implement Search */ }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                     }
@@ -141,7 +148,7 @@ fun HomeScreenContent(
                 }
                 state.error != null -> {
                     Text(
-                        text = state.error ?: "Unknown Error",
+                        text = state.error,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center)
                     )
@@ -209,7 +216,7 @@ fun ContactItem(contact: ChatUser, onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = if (contact.lastMessage.isEmpty()) "Tap to start a conversation" else contact.lastMessage,
+                text = contact.lastMessage.ifEmpty { "Tap to start a conversation" },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (contact.lastMessage.isEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -241,7 +248,8 @@ fun HomeScreenPreview() {
             state = HomeScreenState(contacts = mockContacts),
             hasPermission = true,
             onGrantPermission = {},
-            onContactClick = {}
+            onContactClick = {},
+            onSettingsClick = {}
         )
     }
 }

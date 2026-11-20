@@ -19,14 +19,20 @@ import uk.ac.tees.mad.chateasy.model.UserData
 
 class RepoImpl : Repo {
     private val auth = FirebaseAuth.getInstance()
-    private val firestore = FirebaseFirestore.getInstance().apply {
-        // Firestore persistence is enabled by default on Android, 
-        // but we can explicitly configure the cache size if needed.
-        val settings = com.google.firebase.firestore.firestoreSettings {
-            setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
+    private var _firestore: FirebaseFirestore? = null
+
+    private val firestore: FirebaseFirestore
+        get() {
+            if (_firestore == null) {
+                _firestore = FirebaseFirestore.getInstance().apply {
+                    val settings = com.google.firebase.firestore.firestoreSettings {
+                        setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
+                    }
+                    firestoreSettings = settings
+                }
+            }
+            return _firestore!!
         }
-        firestoreSettings = settings
-    }
 
     private fun getChatId(uid1: String, uid2: String): String {
         return if (uid1 < uid2) "${uid1}_${uid2}" else "${uid2}_${uid1}"
@@ -280,5 +286,34 @@ class RepoImpl : Repo {
             trySend(ResultState.error("User not logged in"))
         }
         awaitClose { close() }
+    }
+
+    override fun logout(): Flow<ResultState<String>> = callbackFlow {
+        trySend(ResultState.Loading)
+        auth.signOut()
+        trySend(ResultState.Succes("Logged out"))
+        close()
+        awaitClose { }
+    }
+
+    override fun clearCache(): Flow<ResultState<String>> = callbackFlow {
+        trySend(ResultState.Loading)
+        firestore.terminate().addOnCompleteListener { terminateTask ->
+            if (terminateTask.isSuccessful) {
+                firestore.clearPersistence().addOnCompleteListener { clearTask ->
+                    if (clearTask.isSuccessful) {
+                        trySend(ResultState.Succes("Cache Cleared"))
+                    } else {
+                        trySend(ResultState.error(clearTask.exception?.localizedMessage ?: "Failed to clear cache"))
+                    }
+                    _firestore = null // Reset the instance so it gets re-initialized on next use
+                    close()
+                }
+            } else {
+                trySend(ResultState.error(terminateTask.exception?.localizedMessage ?: "Failed to terminate Firestore"))
+                close()
+            }
+        }
+        awaitClose { }
     }
 }

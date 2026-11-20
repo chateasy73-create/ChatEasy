@@ -23,6 +23,9 @@ class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) :
     private val _chatScreenState = mutableStateOf(ChatScreenState())
     val chatScreenState = _chatScreenState
 
+    private val _settingsScreenState = mutableStateOf(SettingsScreenState())
+    val settingsScreenState = _settingsScreenState
+
     fun loginUser(userData: UserData) {
         viewModelScope.launch {
             repo.loginuserwithemailandpassword(userData).collect { result ->
@@ -147,6 +150,58 @@ class AppViewModel(savedStateHandle: SavedStateHandle, private val repo: Repo) :
         }
     }
 
+    fun logout() {
+        viewModelScope.launch {
+            repo.logout().collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _settingsScreenState.value = _settingsScreenState.value.copy(isLoading = true)
+                    }
+                    is ResultState.Succes -> {
+                        _settingsScreenState.value = _settingsScreenState.value.copy(
+                            isLoading = false,
+                            logoutSuccess = true
+                        )
+                    }
+                    is ResultState.error -> {
+                        _settingsScreenState.value = _settingsScreenState.value.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun clearCache() {
+        viewModelScope.launch {
+            repo.clearCache().collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _settingsScreenState.value = _settingsScreenState.value.copy(isLoading = true)
+                    }
+                    is ResultState.Succes -> {
+                        _settingsScreenState.value = _settingsScreenState.value.copy(
+                            isLoading = false,
+                            cacheCleared = true
+                        )
+                    }
+                    is ResultState.error -> {
+                        _settingsScreenState.value = _settingsScreenState.value.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun resetSettingsState() {
+        _settingsScreenState.value = SettingsScreenState()
+    }
+
     companion object {
         fun Factory(repo: Repo): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -172,5 +227,12 @@ data class HomeScreenState(
 data class ChatScreenState(
     val isLoading: Boolean = false,
     val messages: List<ChatMessage> = emptyList(),
+    val error: String? = null
+)
+
+data class SettingsScreenState(
+    val isLoading: Boolean = false,
+    val logoutSuccess: Boolean = false,
+    val cacheCleared: Boolean = false,
     val error: String? = null
 )
